@@ -1,10 +1,18 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
-import { Download, RefreshCw, Loader2, ImageOff } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Download, RefreshCw, Loader2, ImageOff, Coins } from "lucide-react";
 import { UploadDropzone } from "@/components/site/UploadDropzone";
 import { BeforeAfterSlider } from "@/components/site/BeforeAfterSlider";
 import { removeBackground } from "@/lib/api";
 import { toast } from "sonner";
+import {
+  DAILY_FREE_CREDITS,
+  MAX_CREDITS_PER_IMAGE,
+  canAfford,
+  consume,
+  estimateCost,
+  getRemaining,
+} from "@/lib/credits";
 
 export const Route = createFileRoute("/app")({
   head: () => ({
@@ -27,14 +35,30 @@ function AppPage() {
   const [originalUrl, setOriginalUrl] = useState<string | null>(null);
   const [resultUrl, setResultUrl] = useState<string | null>(null);
   const [time, setTime] = useState<string | null>(null);
+  const [remaining, setRemaining] = useState<number>(DAILY_FREE_CREDITS);
+  const [lastCost, setLastCost] = useState<number | null>(null);
+
+  useEffect(() => {
+    setRemaining(getRemaining());
+  }, []);
 
   async function handleFile(file: File) {
+    const cost = estimateCost(file.size);
+    if (!canAfford(cost)) {
+      toast.error(
+        `Not enough credits. This image costs ${cost}, you have ${getRemaining()} left today.`,
+      );
+      return;
+    }
+    setLastCost(cost);
     setStatus("loading");
     setOriginalUrl(URL.createObjectURL(file));
     setResultUrl(null);
     try {
       const res = await removeBackground(file);
       if (!res.success) throw new Error("Failed");
+      const left = consume(cost);
+      setRemaining(left);
       setResultUrl(res.imageUrl);
       setTime(res.processingTime ?? null);
       setStatus("success");
