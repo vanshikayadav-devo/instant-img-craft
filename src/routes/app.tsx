@@ -84,6 +84,26 @@ function AppPage() {
         <p className="mt-2 text-muted-foreground">Upload an image and we'll do the rest.</p>
       </div>
 
+      <div className="mt-6 mx-auto max-w-2xl rounded-2xl border border-border bg-card/60 p-4 flex items-center justify-between gap-4 shadow-[var(--shadow-soft)]">
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-xl gradient-bg flex items-center justify-center">
+            <Coins className="h-5 w-5 text-white" />
+          </div>
+          <div>
+            <div className="text-sm font-semibold">{remaining} / {DAILY_FREE_CREDITS} credits left today</div>
+            <div className="text-xs text-muted-foreground">
+              Each image costs 5–{MAX_CREDITS_PER_IMAGE} credits based on file size. Resets daily.
+            </div>
+          </div>
+        </div>
+        <div className="hidden sm:block h-2 w-32 rounded-full bg-muted overflow-hidden">
+          <div
+            className="h-full gradient-bg transition-all"
+            style={{ width: `${(remaining / DAILY_FREE_CREDITS) * 100}%` }}
+          />
+        </div>
+      </div>
+
       <div className="mt-10">
         {status === "idle" && <UploadDropzone onFile={handleFile} />}
 
@@ -132,8 +152,9 @@ function AppPage() {
                 </button>
               </div>
               <div className="mt-6 rounded-xl border border-border bg-muted/40 p-4 text-xs text-muted-foreground">
-                Free plan includes 5 images/day with a small watermark.{" "}
-                <a href="/pricing" className="gradient-text font-medium">Upgrade to Pro</a> for HD output without watermark.
+                Used <span className="font-semibold text-foreground">{lastCost}</span> credits ·{" "}
+                <span className="font-semibold text-foreground">{remaining}</span> left today.{" "}
+                <a href="/pricing" className="gradient-text font-medium">Upgrade to Pro</a> for unlimited HD removals.
               </div>
             </div>
           </div>
