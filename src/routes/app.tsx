@@ -1,10 +1,18 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
-import { Download, RefreshCw, Loader2, ImageOff } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Download, RefreshCw, Loader2, ImageOff, Coins } from "lucide-react";
 import { UploadDropzone } from "@/components/site/UploadDropzone";
 import { BeforeAfterSlider } from "@/components/site/BeforeAfterSlider";
 import { removeBackground } from "@/lib/api";
 import { toast } from "sonner";
+import {
+  DAILY_FREE_CREDITS,
+  MAX_CREDITS_PER_IMAGE,
+  canAfford,
+  consume,
+  estimateCost,
+  getRemaining,
+} from "@/lib/credits";
 
 export const Route = createFileRoute("/app")({
   head: () => ({
@@ -27,14 +35,30 @@ function AppPage() {
   const [originalUrl, setOriginalUrl] = useState<string | null>(null);
   const [resultUrl, setResultUrl] = useState<string | null>(null);
   const [time, setTime] = useState<string | null>(null);
+  const [remaining, setRemaining] = useState<number>(DAILY_FREE_CREDITS);
+  const [lastCost, setLastCost] = useState<number | null>(null);
+
+  useEffect(() => {
+    setRemaining(getRemaining());
+  }, []);
 
   async function handleFile(file: File) {
+    const cost = estimateCost(file.size);
+    if (!canAfford(cost)) {
+      toast.error(
+        `Not enough credits. This image costs ${cost}, you have ${getRemaining()} left today.`,
+      );
+      return;
+    }
+    setLastCost(cost);
     setStatus("loading");
     setOriginalUrl(URL.createObjectURL(file));
     setResultUrl(null);
     try {
       const res = await removeBackground(file);
       if (!res.success) throw new Error("Failed");
+      const left = consume(cost);
+      setRemaining(left);
       setResultUrl(res.imageUrl);
       setTime(res.processingTime ?? null);
       setStatus("success");
@@ -58,6 +82,26 @@ function AppPage() {
       <div className="text-center max-w-2xl mx-auto">
         <h1 className="text-3xl md:text-4xl font-bold">Remove background</h1>
         <p className="mt-2 text-muted-foreground">Upload an image and we'll do the rest.</p>
+      </div>
+
+      <div className="mt-6 mx-auto max-w-2xl rounded-2xl border border-border bg-card/60 p-4 flex items-center justify-between gap-4 shadow-[var(--shadow-soft)]">
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-xl gradient-bg flex items-center justify-center">
+            <Coins className="h-5 w-5 text-white" />
+          </div>
+          <div>
+            <div className="text-sm font-semibold">{remaining} / {DAILY_FREE_CREDITS} credits left today</div>
+            <div className="text-xs text-muted-foreground">
+              Each image costs 5–{MAX_CREDITS_PER_IMAGE} credits based on file size. Resets daily.
+            </div>
+          </div>
+        </div>
+        <div className="hidden sm:block h-2 w-32 rounded-full bg-muted overflow-hidden">
+          <div
+            className="h-full gradient-bg transition-all"
+            style={{ width: `${(remaining / DAILY_FREE_CREDITS) * 100}%` }}
+          />
+        </div>
       </div>
 
       <div className="mt-10">
@@ -108,8 +152,9 @@ function AppPage() {
                 </button>
               </div>
               <div className="mt-6 rounded-xl border border-border bg-muted/40 p-4 text-xs text-muted-foreground">
-                Free plan includes 5 images/day with a small watermark.{" "}
-                <a href="/pricing" className="gradient-text font-medium">Upgrade to Pro</a> for HD output without watermark.
+                Used <span className="font-semibold text-foreground">{lastCost}</span> credits ·{" "}
+                <span className="font-semibold text-foreground">{remaining}</span> left today.{" "}
+                <a href="/pricing" className="gradient-text font-medium">Upgrade to Pro</a> for unlimited HD removals.
               </div>
             </div>
           </div>

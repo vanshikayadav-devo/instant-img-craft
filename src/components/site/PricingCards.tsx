@@ -4,7 +4,7 @@ import { Link } from "@tanstack/react-router";
 const PLANS = [
   {
     name: "Free", price: "₹0", per: "/month", cta: "Start free", to: "/app", highlight: false,
-    features: ["5 images per day", "Standard quality", "Watermarked output", "Web access"],
+    features: ["100 credits / day", "5–25 credits per image (by size)", "Standard quality", "Watermarked output"],
   },
   {
     name: "Pro", price: "₹299", per: "/month", cta: "Upgrade to Pro", to: "/auth", highlight: true,
