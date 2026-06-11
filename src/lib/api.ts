@@ -1,35 +1,38 @@
-// Thin API layer talking to n8n webhooks. All backend logic lives in n8n.
-const WEBHOOK = import.meta.env.VITE_N8N_WEBHOOK_URL ?? "";
+import { removeBackgroundServer } from "./api/remove-bg.server";
 
 export interface RemoveBgResponse {
   success: boolean;
-  imageUrl: string;
+  imageUrl?: string;
   processingTime?: string;
+  requestId?: string;
+  polling?: boolean;
 }
 
 /**
- * Sends image to n8n webhook for background removal.
- * If VITE_N8N_WEBHOOK_URL is not set, falls back to a local preview
- * (returns the original image) so the UI is fully demoable.
+ * Removes background from an image using Cloudinary.
+ * Calls a server-side function to handle the upload and transformation.
  */
 export async function removeBackground(file: File): Promise<RemoveBgResponse> {
-  if (!WEBHOOK) {
-    // Demo fallback: pretend AI ran. Returns object URL of the original.
-    await new Promise((r) => setTimeout(r, 1400));
-    return {
-      success: true,
-      imageUrl: URL.createObjectURL(file),
-      processingTime: "1.4 sec",
-    };
+  // Convert file to base64 for transmission
+  const arrayBuffer = await file.arrayBuffer();
+  const bytes = new Uint8Array(arrayBuffer);
+  let binary = '';
+  for (let i = 0; i < bytes.byteLength; i++) {
+    binary += String.fromCharCode(bytes[i]);
   }
+  const base64 = btoa(binary);
 
-  const form = new FormData();
-  form.append("file", file);
-
-  const res = await fetch(`${WEBHOOK}/remove-bg`, {
-    method: "POST",
-    body: form,
+  const result = await removeBackgroundServer({ 
+    data: {
+      base64,
+      name: file.name,
+      type: file.type,
+      size: file.size,
+    }
   });
-  if (!res.ok) throw new Error(`Background removal failed (${res.status})`);
-  return (await res.json()) as RemoveBgResponse;
+
+  if (!result.success) {
+    throw new Error("Failed to remove background");
+  }
+  return result;
 }

@@ -2,8 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Download, RefreshCw, Loader2, ImageOff, Coins } from "lucide-react";
 import { UploadDropzone } from "@/components/site/UploadDropzone";
-import { BeforeAfterSlider } from "@/components/site/BeforeAfterSlider";
 import { removeBackground } from "@/lib/api";
+import { getProcessedImageUrl } from "@/lib/api/get-result.server";
 import { toast } from "sonner";
 import {
   DAILY_FREE_CREDITS,
@@ -57,12 +57,52 @@ function AppPage() {
     try {
       const res = await removeBackground(file);
       if (!res.success) throw new Error("Failed");
+      
       const left = consume(cost);
       setRemaining(left);
-      setResultUrl(res.imageUrl);
-      setTime(res.processingTime ?? null);
-      setStatus("success");
-      toast.success("Background removed");
+      
+      // If polling is required (webhook processing)
+      if (res.polling && res.requestId) {
+        console.log("⏳ Polling for webhook result...", res.requestId);
+        setTime(res.processingTime ?? null);
+        
+        // Poll for result
+        let pollingAttempts = 0;
+        const maxAttempts = 60; // 2 minutes timeout (60 * 2 seconds)
+        
+        const pollInterval = setInterval(async () => {
+          pollingAttempts++;
+          
+          try {
+            const result = await getProcessedImageUrl({ data: { requestId: res.requestId! } });
+            
+            if (result.found && result.url) {
+              clearInterval(pollInterval);
+              setResultUrl(result.url);
+              setStatus("success");
+              toast.success("Background removed");
+              console.log("✅ Result received from webhook:", result.url);
+            } else if (pollingAttempts >= maxAttempts) {
+              clearInterval(pollInterval);
+              setStatus("error");
+              toast.error("Processing timeout. Please try again.");
+            }
+          } catch (err) {
+            console.error("Polling error:", err);
+            if (pollingAttempts >= maxAttempts) {
+              clearInterval(pollInterval);
+              setStatus("error");
+              toast.error("Processing failed. Please try again.");
+            }
+          }
+        }, 2000); // Poll every 2 seconds
+      } else {
+        // Direct result (demo or immediate processing)
+        setResultUrl(res.imageUrl || null);
+        setTime(res.processingTime ?? null);
+        setStatus("success");
+        toast.success("Background removed");
+      }
     } catch (err) {
       console.error(err);
       setStatus("error");
@@ -130,8 +170,29 @@ function AppPage() {
         )}
 
         {status === "success" && originalUrl && resultUrl && (
-          <div className="grid gap-8 lg:grid-cols-[1.4fr_1fr]">
-            <BeforeAfterSlider beforeSrc={originalUrl} afterSrc={resultUrl} />
+          <div className="grid gap-8">
+            {/* Before and After Images Side by Side */}
+            <div className="grid grid-cols-2 gap-6">
+              {/* Before */}
+              <div className="rounded-2xl border border-border overflow-hidden bg-muted">
+                <img 
+                  src={originalUrl} 
+                  alt="Original" 
+                  className="w-full h-auto object-cover max-h-96"
+                />
+                <div className="p-3 text-center text-xs font-medium text-muted-foreground">Before</div>
+              </div>
+              {/* After */}
+              <div className="rounded-2xl border border-border overflow-hidden bg-muted">
+                <img 
+                  src={resultUrl} 
+                  alt="Background removed" 
+                  className="w-full h-auto object-cover max-h-96"
+                />
+                <div className="p-3 text-center text-xs font-medium text-muted-foreground">After</div>
+              </div>
+            </div>
+            
             <div className="rounded-3xl border border-border bg-card p-7 shadow-[var(--shadow-soft)]">
               <div className="text-xs uppercase tracking-wider text-muted-foreground">Result</div>
               <h3 className="mt-1 text-xl font-semibold">Background removed</h3>
