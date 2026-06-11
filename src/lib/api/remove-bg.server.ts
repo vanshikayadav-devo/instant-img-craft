@@ -80,35 +80,65 @@ export const removeBackgroundServer = createServerFn({ method: "POST" })
       // Decode base64 to buffer
       const buffer = Buffer.from(imageData.base64, 'base64');
 
-      // Send binary image data to webhook (fire and forget, non-blocking)
-      if (webhookUrl) {
-        sendToWebhook(buffer, imageData.name, imageData.type, webhookUrl, requestId, callbackUrl).catch((err) => {
-          console.error("Failed to send image to webhook:", err);
-        });
-      }
-
       // Check if using real Cloudinary or demo mode
       const isDemo = !cloudName || cloudName.includes("your_") || !apiKey || apiKey.includes("your_");
 
+      // Send binary image data to webhook; n8n returns a Cloudinary URL (JSON or plain text), not binary PNG
+      let webhookImageUrl: string | null = null;
+      if (webhookUrl) {
+        try {
+          webhookImageUrl = await sendToWebhook(
+            buffer,
+            imageData.name,
+            imageData.type,
+            webhookUrl,
+            requestId,
+            callbackUrl,
+          );
+          if (webhookImageUrl) {
+            storeResult(requestId, webhookImageUrl);
+            console.log(`✅ Webhook returned image URL: ${webhookImageUrl}`);
+          }
+        } catch (err) {
+          console.error("Failed to send image to webhook:", err);
+        }
+      }
+
       if (isDemo) {
-        // DEMO MODE - Simulate background removal with transparent version
         console.log("📦 DEMO MODE: Processing image...");
         console.log(`📷 Image: ${imageData.name} (${(buffer.length / 1024).toFixed(2)} KB)`);
-        console.log(`📡 Webhook: ${webhookUrl ? "✅ Binary data sent" : "⚠️ No webhook configured"}`);
+        console.log(`📡 Webhook: ${webhookUrl ? "✅ Request sent" : "⚠️ No webhook configured"}`);
         console.log(`📋 Request ID: ${requestId}`);
         console.log(`🔗 Callback URL: ${callbackUrl}`);
-        
-        // Generate transparent PNG with subject (demo simulation)
-        const demoResultUrl = generateDemoTransparentImage(imageData);
-        
-        // Store result immediately for demo (in production, n8n will do this)
-        storeResult(requestId, demoResultUrl);
-        console.log(`✅ Demo result with transparent background ready`);
-        
+
         const endTime = Date.now();
         const processingTime = ((endTime - startTime) / 1000).toFixed(1);
 
-        // Return request ID for polling
+        // Webhook returned a Cloudinary URL directly — use it, do not poll or use demo placeholder
+        if (webhookImageUrl) {
+          return {
+            success: true,
+            imageUrl: webhookImageUrl,
+            requestId,
+            polling: false,
+            processingTime: `${processingTime} sec`,
+          } as RemoveBgResponse;
+        }
+
+        // Webhook configured but async (n8n will POST to callback) — poll for real URL
+        if (webhookUrl) {
+          return {
+            success: true,
+            requestId,
+            polling: true,
+            processingTime: `${processingTime} sec`,
+          } as RemoveBgResponse;
+        }
+
+        // No webhook — local demo placeholder only
+        const demoResultUrl = generateDemoTransparentImage(imageData);
+        storeResult(requestId, demoResultUrl);
+
         return {
           success: true,
           requestId,
@@ -162,7 +192,32 @@ export const removeBackgroundServer = createServerFn({ method: "POST" })
   });
 
 /**
- * Send binary image data to webhook
+ * Extract a hosted image URL from webhook response.
+ * n8n returns JSON like { url: "https://res.cloudinary.com/..." } or a plain URL string — not binary PNG.
+ */
+async function extractImageUrlFromWebhookResponse(response: Response): Promise<string | null> {
+  const contentType = response.headers.get("content-type") ?? "";
+
+  if (contentType.includes("application/json")) {
+    const data = (await response.json()) as Record<string, unknown>;
+    const candidate =
+      data.url ?? data.imageUrl ?? data.secure_url ?? data.image_url ?? data.output;
+    if (typeof candidate === "string" && /^https?:\/\//.test(candidate)) {
+      return candidate;
+    }
+    return null;
+  }
+
+  const text = (await response.text()).trim();
+  if (/^https?:\/\//.test(text)) {
+    return text;
+  }
+
+  return null;
+}
+
+/**
+ * Send binary image data to webhook and return any image URL in the response body.
  */
 async function sendToWebhook(
   buffer: Buffer,
@@ -170,28 +225,27 @@ async function sendToWebhook(
   fileType: string,
   webhookUrl: string,
   requestId: string,
-  callbackUrl: string
-): Promise<void> {
-  try {
-    const response = await fetch(webhookUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": fileType,
-        "X-Image-Name": fileName,
-        "X-Image-Type": fileType,
-        "X-Image-Size": buffer.length.toString(),
-        "X-Request-ID": requestId,
-        "X-Callback-URL": callbackUrl,
-      },
-      body: buffer,
-    });
+  callbackUrl: string,
+): Promise<string | null> {
+  const response = await fetch(webhookUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": fileType,
+      "X-Image-Name": fileName,
+      "X-Image-Type": fileType,
+      "X-Image-Size": buffer.length.toString(),
+      "X-Request-ID": requestId,
+      "X-Callback-URL": callbackUrl,
+    },
+    body: buffer,
+  });
 
-    if (!response.ok) {
-      console.warn(
-        `Webhook request failed with status ${response.status}: ${response.statusText}`
-      );
-    }
-  } catch (error) {
-    console.error("Error sending image to webhook:", error);
+  if (!response.ok) {
+    console.warn(
+      `Webhook request failed with status ${response.status}: ${response.statusText}`,
+    );
+    return null;
   }
+
+  return extractImageUrlFromWebhookResponse(response);
 }
