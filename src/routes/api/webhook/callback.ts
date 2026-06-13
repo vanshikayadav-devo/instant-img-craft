@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import type {} from "@tanstack/react-start";
+import { extractImageUrl } from "@/lib/api/image-url";
 import { storeResult } from "@/lib/api/webhook-results";
 
 export const Route = createFileRoute("/api/webhook/callback")({
@@ -8,51 +9,98 @@ export const Route = createFileRoute("/api/webhook/callback")({
       POST: async (context) => {
         try {
           const req = context.request;
-          const data = await req.json() as { requestId?: string; url?: string };
+          const payload = await readWebhookPayload(req);
+          const requestId =
+            extractTextValue(payload, ["requestId", "requestID", "id"]) ||
+            req.headers.get("x-request-id");
+          const imageUrl = extractImageUrl(payload);
 
-          if (!data.requestId || !data.url) {
-            return new Response(
-              JSON.stringify({
-                success: false,
-                error: "Missing requestId or url",
-              }),
+          if (!requestId || !imageUrl) {
+            return Response.json(
               {
-                status: 400,
-                headers: { "Content-Type": "application/json" },
-              }
+                success: false,
+                error: "Missing requestId or image URL",
+              },
+              { status: 400 },
             );
           }
 
-          // Store the result
-          storeResult(data.requestId, data.url);
+          storeResult(requestId, imageUrl);
+          console.log(`Webhook callback received - Request: ${requestId}, URL: ${imageUrl}`);
 
-          console.log(`✅ Webhook callback received - Request: ${data.requestId}, URL: ${data.url}`);
-
-          return new Response(
-            JSON.stringify({
-              success: true,
-              message: "Result stored successfully",
-              requestId: data.requestId,
-            }),
-            {
-              status: 200,
-              headers: { "Content-Type": "application/json" },
-            }
-          );
+          return Response.json({
+            success: true,
+            message: "Result stored successfully",
+            requestId,
+            url: imageUrl,
+          });
         } catch (error) {
           console.error("Webhook callback error:", error);
-          return new Response(
-            JSON.stringify({
+          return Response.json(
+            {
               success: false,
               error: "Failed to process callback",
-            }),
-            {
-              status: 500,
-              headers: { "Content-Type": "application/json" },
-            }
+            },
+            { status: 500 },
           );
         }
       },
     },
   },
 });
+
+async function readWebhookPayload(req: Request): Promise<unknown> {
+  const contentType = req.headers.get("content-type") || "";
+
+  if (contentType.includes("application/json")) {
+    return req.json();
+  }
+
+  const text = await req.text();
+  if (!text.trim()) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    return text;
+  }
+}
+
+function getText(value: unknown): string | null {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function extractTextValue(value: unknown, keys: string[]): string | null {
+  const direct = getText(value);
+  if (direct) {
+    return direct;
+  }
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const result = extractTextValue(item, keys);
+      if (result) return result;
+    }
+    return null;
+  }
+
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const record = value as Record<string, unknown>;
+
+  for (const key of keys) {
+    const result = getText(record[key]);
+    if (result) return result;
+  }
+
+  for (const item of Object.values(record)) {
+    const result = extractTextValue(item, keys);
+    if (result) return result;
+  }
+
+  return null;
+}

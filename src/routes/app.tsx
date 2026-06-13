@@ -18,9 +18,16 @@ export const Route = createFileRoute("/app")({
   head: () => ({
     meta: [
       { title: "Remove Background — SnapCut AI" },
-      { name: "description", content: "Upload an image and let SnapCut AI remove the background instantly. Download a transparent PNG." },
+      {
+        name: "description",
+        content:
+          "Upload an image and let SnapCut AI remove the background instantly. Download a transparent PNG.",
+      },
       { property: "og:title", content: "Remove Background — SnapCut AI" },
-      { property: "og:description", content: "Upload, process, download. AI background removal in seconds." },
+      {
+        property: "og:description",
+        content: "Upload, process, download. AI background removal in seconds.",
+      },
       { property: "og:url", content: "/app" },
     ],
     links: [{ rel: "canonical", href: "/app" }],
@@ -34,7 +41,9 @@ function AppPage() {
   const [status, setStatus] = useState<Status>("idle");
   const [originalUrl, setOriginalUrl] = useState<string | null>(null);
   const [resultUrl, setResultUrl] = useState<string | null>(null);
+  const [resultImageError, setResultImageError] = useState(false);
   const [time, setTime] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [remaining, setRemaining] = useState<number>(DAILY_FREE_CREDITS);
   const [lastCost, setLastCost] = useState<number | null>(null);
 
@@ -54,31 +63,35 @@ function AppPage() {
     setStatus("loading");
     setOriginalUrl(URL.createObjectURL(file));
     setResultUrl(null);
+    setResultImageError(false);
+    setErrorMessage(null);
     try {
       const res = await removeBackground(file);
+      console.log("Background removal API response:", res);
       if (!res.success) throw new Error("Failed");
-      
+
       const left = consume(cost);
       setRemaining(left);
-      
+
       // If polling is required (webhook processing)
       if (res.polling && res.requestId) {
         console.log("⏳ Polling for webhook result...", res.requestId);
         setTime(res.processingTime ?? null);
-        
+
         // Poll for result
         let pollingAttempts = 0;
         const maxAttempts = 60; // 2 minutes timeout (60 * 2 seconds)
-        
+
         const pollInterval = setInterval(async () => {
           pollingAttempts++;
-          
+
           try {
             const result = await getProcessedImageUrl({ data: { requestId: res.requestId! } });
-            
+
             if (result.found && result.url) {
               clearInterval(pollInterval);
               setResultUrl(result.url);
+              setResultImageError(false);
               setStatus("success");
               toast.success("Background removed");
               console.log("✅ Result received from webhook:", result.url);
@@ -97,8 +110,14 @@ function AppPage() {
           }
         }, 2000); // Poll every 2 seconds
       } else {
-        // Direct result (demo or immediate processing)
-        setResultUrl(res.imageUrl || null);
+        if (!res.imageUrl) {
+          throw new Error("No processed image URL returned");
+        }
+
+        // Direct result from the background-removal service
+        console.log("Final image URL:", res.imageUrl);
+        setResultUrl(res.imageUrl);
+        setResultImageError(false);
         setTime(res.processingTime ?? null);
         setStatus("success");
         toast.success("Background removed");
@@ -106,7 +125,9 @@ function AppPage() {
     } catch (err) {
       console.error(err);
       setStatus("error");
-      toast.error("Something went wrong. Try again.");
+      const message = err instanceof Error ? err.message : "Something went wrong. Try again.";
+      setErrorMessage(message);
+      toast.error(message);
     }
   }
 
@@ -114,7 +135,9 @@ function AppPage() {
     setStatus("idle");
     setOriginalUrl(null);
     setResultUrl(null);
+    setResultImageError(false);
     setTime(null);
+    setErrorMessage(null);
   }
 
   return (
@@ -130,7 +153,9 @@ function AppPage() {
             <Coins className="h-5 w-5 text-white" />
           </div>
           <div>
-            <div className="text-sm font-semibold">{remaining} / {DAILY_FREE_CREDITS} credits left today</div>
+            <div className="text-sm font-semibold">
+              {remaining} / {DAILY_FREE_CREDITS} credits left today
+            </div>
             <div className="text-xs text-muted-foreground">
               Each image costs 5–{MAX_CREDITS_PER_IMAGE} credits based on file size. Resets daily.
             </div>
@@ -159,7 +184,9 @@ function AppPage() {
           <div className="rounded-3xl border border-destructive/30 bg-destructive/5 p-12 text-center">
             <ImageOff className="mx-auto h-10 w-10 text-destructive" />
             <h3 className="mt-4 text-lg font-semibold">Processing failed</h3>
-            <p className="mt-1 text-sm text-muted-foreground">Please try with a different image.</p>
+            <p className="mx-auto mt-1 max-w-2xl text-sm text-muted-foreground">
+              {errorMessage || "Please try with a different image."}
+            </p>
             <button
               onClick={reset}
               className="mt-6 inline-flex h-10 items-center gap-2 rounded-full px-5 text-sm font-medium text-white gradient-bg"
@@ -172,27 +199,47 @@ function AppPage() {
         {status === "success" && originalUrl && resultUrl && (
           <div className="grid gap-8">
             {/* Before and After Images Side by Side */}
-            <div className="grid grid-cols-2 gap-6">
+            <div className="grid gap-6 md:grid-cols-2">
               {/* Before */}
               <div className="rounded-2xl border border-border overflow-hidden bg-muted">
-                <img 
-                  src={originalUrl} 
-                  alt="Original" 
-                  className="w-full h-auto object-cover max-h-96"
+                <img
+                  src={originalUrl}
+                  alt="Original"
+                  className="h-80 w-full object-contain md:h-96"
                 />
-                <div className="p-3 text-center text-xs font-medium text-muted-foreground">Before</div>
+                <div className="p-3 text-center text-xs font-medium text-muted-foreground">
+                  Before
+                </div>
               </div>
               {/* After */}
-              <div className="rounded-2xl border border-border overflow-hidden bg-muted">
-                <img 
-                  src={resultUrl} 
-                  alt="Background removed" 
-                  className="w-full h-auto object-cover max-h-96"
+              <div className="rounded-2xl border border-border overflow-hidden checker-bg">
+                <img
+                  src={resultUrl}
+                  alt="Background removed"
+                  className="h-80 w-full object-contain md:h-96"
+                  referrerPolicy="no-referrer"
+                  onLoad={() => setResultImageError(false)}
+                  onError={() => setResultImageError(true)}
                 />
-                <div className="p-3 text-center text-xs font-medium text-muted-foreground">After</div>
+                <div className="p-3 text-center text-xs font-medium text-muted-foreground bg-card/80">
+                  After
+                </div>
               </div>
             </div>
-            
+            {resultImageError && (
+              <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+                The processed URL was received, but the browser could not render it as an image.{" "}
+                <a
+                  href={resultUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="font-semibold underline"
+                >
+                  Open returned URL
+                </a>
+              </div>
+            )}
+
             <div className="rounded-3xl border border-border bg-card p-7 shadow-[var(--shadow-soft)]">
               <div className="text-xs uppercase tracking-wider text-muted-foreground">Result</div>
               <h3 className="mt-1 text-xl font-semibold">Background removed</h3>
@@ -215,7 +262,10 @@ function AppPage() {
               <div className="mt-6 rounded-xl border border-border bg-muted/40 p-4 text-xs text-muted-foreground">
                 Used <span className="font-semibold text-foreground">{lastCost}</span> credits ·{" "}
                 <span className="font-semibold text-foreground">{remaining}</span> left today.{" "}
-                <a href="/pricing" className="gradient-text font-medium">Upgrade to Pro</a> for unlimited HD removals.
+                <a href="/pricing" className="gradient-text font-medium">
+                  Upgrade to Pro
+                </a>{" "}
+                for unlimited HD removals.
               </div>
             </div>
           </div>

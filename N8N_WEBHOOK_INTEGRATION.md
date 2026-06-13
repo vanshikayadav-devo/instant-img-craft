@@ -11,17 +11,22 @@ When a user uploads an image in SnapCut AI, the binary image data is sent to you
 **Request Format:**
 ```
 POST https://your-n8n-instance/webhook/remove-background
-Content-Type: image/png (or image/jpeg, image/webp)
+Content-Type: multipart/form-data
 
 Headers:
-- Content-Type: image/png (or appropriate MIME type)
 - X-Image-Name: original-filename.png
 - X-Image-Type: image/png
 - X-Image-Size: 12345
 - X-Request-ID: req_1781177413000_abc123def456
 - X-Callback-URL: http://localhost:8080/api/webhook/callback
 
-[Binary Image Data]
+Form fields:
+- file: uploaded image binary
+- requestId: req_1781177413000_abc123def456
+- callbackUrl: http://localhost:8080/api/webhook/callback
+- fileName: original-filename.png
+- fileType: image/png
+- fileSize: 12345
 ```
 
 ### Step 2: Process Image in N8N
@@ -87,7 +92,7 @@ fetch(callbackUrl, {
 
 ## Key Points
 
-- **Binary Data**: The webhook receives raw binary image data in the request body
+- **Binary Data**: The webhook receives the image in the multipart `file` field
 - **Request ID**: Always include the `X-Request-ID` header value in the callback
 - **Callback URL**: Always use the `X-Callback-URL` header value for the response
 - **Timeout**: Client polls for results with a 2-minute timeout
