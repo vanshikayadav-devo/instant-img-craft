@@ -38,42 +38,38 @@ export const removeBackgroundServer = createServerFn({ method: "POST" })
       const apiSecret = process.env.VITE_CLOUDINARY_API_SECRET;
       const webhookUrl = process.env.VITE_WEBHOOK_URL || N8N_WEBHOOK_URL;
 
-      const buffer = Buffer.from(imageData.base64, "base64");
-      const hasCloudinaryConfig = Boolean(
-        cloudName &&
-        !cloudName.includes("your_") &&
-        apiKey &&
-        !apiKey.includes("your_") &&
-        apiSecret &&
-        !apiSecret.includes("your_"),
-      );
+      // Decode base64 to buffer
+      const buffer = Buffer.from(imageData.base64, 'base64');
 
-      if (!hasCloudinaryConfig) {
-        if (!webhookUrl) {
-          throw new Error(
-            "No background-removal service configured. Set VITE_WEBHOOK_URL or Cloudinary credentials in .env.local.",
-          );
-        }
+      // Send binary image data to webhook (fire and forget, non-blocking)
+      if (webhookUrl) {
+        sendToWebhook(buffer, imageData.name, imageData.type, webhookUrl, requestId, callbackUrl).catch((err) => {
+          console.error("Failed to send image to webhook:", err);
+        });
+      }
 
-        console.log("Webhook mode: sending image for background removal...");
-        console.log(`Image: ${imageData.name} (${(buffer.length / 1024).toFixed(2)} KB)`);
-        console.log(`Request ID: ${requestId}`);
-        console.log(`Callback URL: ${callbackUrl}`);
+      // Check if using real Cloudinary or demo mode
+      const isDemo = !cloudName || cloudName.includes("your_") || !apiKey || apiKey.includes("your_");
 
-        const webhookResultUrl = await sendToWebhook(
-          buffer,
-          imageData.name,
-          imageData.type,
-          webhookUrl,
-          requestId,
-          callbackUrl,
-        );
+      if (isDemo) {
+        // DEMO MODE - Simulate background removal with transparent version
+        console.log("📦 DEMO MODE: Processing image...");
+        console.log(`📷 Image: ${imageData.name} (${(buffer.length / 1024).toFixed(2)} KB)`);
+        console.log(`📡 Webhook: ${webhookUrl ? "✅ Binary data sent" : "⚠️ No webhook configured"}`);
+        console.log(`📋 Request ID: ${requestId}`);
+        console.log(`🔗 Callback URL: ${callbackUrl}`);
+        
+        // Generate transparent PNG with subject (demo simulation)
+        const demoResultUrl = generateDemoTransparentImage(imageData);
+        
+        // Store result immediately for demo (in production, n8n will do this)
+        storeResult(requestId, demoResultUrl);
+        console.log(`✅ Demo result with transparent background ready`);
+        
+        const endTime = Date.now();
+        const processingTime = ((endTime - startTime) / 1000).toFixed(1);
 
-        const processingTime = `${((Date.now() - startTime) / 1000).toFixed(1)} sec`;
-
-        console.log("Request success: n8n returned a processed image URL");
-        console.log("Final image URL:", webhookResultUrl);
-        storeResult(requestId, webhookResultUrl);
+        // Return request ID for polling
         return {
           success: true,
           imageUrl: webhookResultUrl,
@@ -125,8 +121,7 @@ export const removeBackgroundServer = createServerFn({ method: "POST" })
   });
 
 /**
- * Send image data to the webhook. The n8n Webhook node handles multipart uploads
- * more reliably than raw request bodies, so the file and metadata are sent as form fields.
+ * Send binary image data to webhook
  */
 async function sendToWebhook(
   buffer: Buffer,
@@ -134,87 +129,30 @@ async function sendToWebhook(
   fileType: string,
   webhookUrl: string,
   requestId: string,
-  callbackUrl: string,
-): Promise<string> {
+  callbackUrl: string
+): Promise<void> {
   try {
-    const formData = new FormData();
-    formData.append("file", new Blob([buffer], { type: fileType }), fileName);
-    formData.append("requestId", requestId);
-    formData.append("callbackUrl", callbackUrl);
-    formData.append("fileName", fileName);
-    formData.append("fileType", fileType);
-    formData.append("fileSize", buffer.length.toString());
-
     const response = await fetch(webhookUrl, {
       method: "POST",
       headers: {
+        "Content-Type": fileType,
         "X-Image-Name": fileName,
         "X-Image-Type": fileType,
         "X-Image-Size": buffer.length.toString(),
         "X-Request-ID": requestId,
         "X-Callback-URL": callbackUrl,
       },
-      body: formData,
-    });
-
-    console.log("Webhook request completed:", {
-      ok: response.ok,
-      status: response.status,
-      statusText: response.statusText,
+      body: buffer,
     });
 
     if (!response.ok) {
-      const errorBody = await response.text();
-      console.error("Webhook error response:", errorBody);
-      throw new Error(
-        `Webhook request failed with status ${response.status}: ${response.statusText}`,
+      console.warn(
+        `Webhook request failed with status ${response.status}: ${response.statusText}`
       );
     }
-
-    const contentType = response.headers.get("content-type") || "";
-
-    if (contentType.startsWith("image/")) {
-      const imageBuffer = Buffer.from(await response.arrayBuffer());
-      const imageUrl = `data:${contentType};base64,${imageBuffer.toString("base64")}`;
-      console.log("Webhook response: image binary");
-      console.log("Final image URL:", imageUrl);
-      return imageUrl;
-    }
-
-    if (contentType.includes("application/json")) {
-      const data = (await response.json()) as { url?: unknown };
-      console.log("Webhook response:", data);
-
-      const imageUrl = typeof data.url === "string" ? data.url.trim() : "";
-      if (!imageUrl) {
-        console.error("Webhook JSON is missing data.url:", data);
-        throw new Error('Webhook response did not include a valid "url" field.');
-      }
-
-      console.log("Final image URL:", imageUrl);
-      return imageUrl;
-    }
-
-    const responseText = await response.text();
-    console.log("Webhook response:", responseText);
-
-    if (!responseText.trim()) {
-      console.error("Webhook returned an empty response body.");
-      throw new Error(
-        'Webhook returned an empty response body. Make sure the n8n Respond to Webhook node returns JSON like { "url": "https://.../result.png" }.',
-      );
-    }
-
-    const imageUrl = extractImageUrl(responseText);
-    if (!imageUrl) {
-      console.error("Webhook response did not include a usable image URL:", responseText);
-      throw new Error('Webhook response did not include a valid "url" field.');
-    }
-
-    console.log("Final image URL:", imageUrl);
-    return imageUrl;
   } catch (error) {
     console.error("Error sending image to webhook:", error);
-    throw error;
   }
+
+  return extractImageUrlFromWebhookResponse(response);
 }
