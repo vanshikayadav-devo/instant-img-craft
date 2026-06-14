@@ -11,6 +11,7 @@ export const DAILY_FREE_CREDITS = 100;
 export const MAX_CREDITS_PER_IMAGE = 25;
 
 const STORAGE_KEY = "snapcut.credits.v1";
+const PRO_STORAGE_KEY = "snapcut.ispro.v1";
 
 interface CreditState {
   date: string; // YYYY-MM-DD
@@ -19,6 +20,18 @@ interface CreditState {
 
 function today(): string {
   return new Date().toISOString().slice(0, 10);
+}
+
+export function getIsPro(): boolean {
+  if (typeof window === "undefined") return false;
+  return localStorage.getItem(PRO_STORAGE_KEY) === "true";
+}
+
+export function setIsPro(status: boolean): void {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(PRO_STORAGE_KEY, status ? "true" : "false");
+  // Trigger custom event to notify components
+  window.dispatchEvent(new Event("creditsUpdated"));
 }
 
 function read(): CreditState {
@@ -37,9 +50,11 @@ function read(): CreditState {
 function write(state: CreditState) {
   if (typeof window === "undefined") return;
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  window.dispatchEvent(new Event("creditsUpdated"));
 }
 
 export function estimateCost(fileSizeBytes: number): number {
+  if (getIsPro()) return 0;
   const mb = fileSizeBytes / (1024 * 1024);
   if (mb <= 1) return 5;
   if (mb <= 3) return 10;
@@ -49,21 +64,26 @@ export function estimateCost(fileSizeBytes: number): number {
 }
 
 export function getRemaining(): number {
+  if (getIsPro()) return 99999;
   const s = read();
   return Math.max(0, DAILY_FREE_CREDITS - s.used);
 }
 
 export function getUsed(): number {
+  if (getIsPro()) return 0;
   return read().used;
 }
 
 export function canAfford(cost: number): boolean {
+  if (getIsPro()) return true;
   return getRemaining() >= cost;
 }
 
 export function consume(cost: number): number {
+  if (getIsPro()) return 99999;
   const s = read();
   const next: CreditState = { date: today(), used: Math.min(DAILY_FREE_CREDITS, s.used + cost) };
   write(next);
   return DAILY_FREE_CREDITS - next.used;
 }
+

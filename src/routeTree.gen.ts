@@ -11,6 +11,8 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
+import { Route as ShippingDeliveryRouteImport } from './routes/shipping-delivery'
+import { Route as RefundCancellationRouteImport } from './routes/refund-cancellation'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as DashboardRouteImport } from './routes/dashboard'
@@ -21,6 +23,8 @@ import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiDownloadRouteImport } from './routes/api/download'
 import { Route as ApiWebhookCallbackRouteImport } from './routes/api/webhook/callback'
+import { Route as ApiRazorpayVerifyRouteImport } from './routes/api/razorpay/verify'
+import { Route as ApiRazorpayCreateOrderRouteImport } from './routes/api/razorpay/create-order'
 
 const TermsRoute = TermsRouteImport.update({
   id: '/terms',
@@ -30,6 +34,16 @@ const TermsRoute = TermsRouteImport.update({
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
   path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ShippingDeliveryRoute = ShippingDeliveryRouteImport.update({
+  id: '/shipping-delivery',
+  path: '/shipping-delivery',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RefundCancellationRoute = RefundCancellationRouteImport.update({
+  id: '/refund-cancellation',
+  path: '/refund-cancellation',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PrivacyRoute = PrivacyRouteImport.update({
@@ -82,6 +96,16 @@ const ApiWebhookCallbackRoute = ApiWebhookCallbackRouteImport.update({
   path: '/api/webhook/callback',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiRazorpayVerifyRoute = ApiRazorpayVerifyRouteImport.update({
+  id: '/api/razorpay/verify',
+  path: '/api/razorpay/verify',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiRazorpayCreateOrderRoute = ApiRazorpayCreateOrderRouteImport.update({
+  id: '/api/razorpay/create-order',
+  path: '/api/razorpay/create-order',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -92,9 +116,13 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof DashboardRoute
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
+  '/refund-cancellation': typeof RefundCancellationRoute
+  '/shipping-delivery': typeof ShippingDeliveryRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
   '/api/download': typeof ApiDownloadRoute
+  '/api/razorpay/create-order': typeof ApiRazorpayCreateOrderRoute
+  '/api/razorpay/verify': typeof ApiRazorpayVerifyRoute
   '/api/webhook/callback': typeof ApiWebhookCallbackRoute
 }
 export interface FileRoutesByTo {
@@ -106,9 +134,13 @@ export interface FileRoutesByTo {
   '/dashboard': typeof DashboardRoute
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
+  '/refund-cancellation': typeof RefundCancellationRoute
+  '/shipping-delivery': typeof ShippingDeliveryRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
   '/api/download': typeof ApiDownloadRoute
+  '/api/razorpay/create-order': typeof ApiRazorpayCreateOrderRoute
+  '/api/razorpay/verify': typeof ApiRazorpayVerifyRoute
   '/api/webhook/callback': typeof ApiWebhookCallbackRoute
 }
 export interface FileRoutesById {
@@ -121,9 +153,13 @@ export interface FileRoutesById {
   '/dashboard': typeof DashboardRoute
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
+  '/refund-cancellation': typeof RefundCancellationRoute
+  '/shipping-delivery': typeof ShippingDeliveryRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
   '/api/download': typeof ApiDownloadRoute
+  '/api/razorpay/create-order': typeof ApiRazorpayCreateOrderRoute
+  '/api/razorpay/verify': typeof ApiRazorpayVerifyRoute
   '/api/webhook/callback': typeof ApiWebhookCallbackRoute
 }
 export interface FileRouteTypes {
@@ -137,9 +173,13 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/pricing'
     | '/privacy'
+    | '/refund-cancellation'
+    | '/shipping-delivery'
     | '/sitemap.xml'
     | '/terms'
     | '/api/download'
+    | '/api/razorpay/create-order'
+    | '/api/razorpay/verify'
     | '/api/webhook/callback'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -151,9 +191,13 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/pricing'
     | '/privacy'
+    | '/refund-cancellation'
+    | '/shipping-delivery'
     | '/sitemap.xml'
     | '/terms'
     | '/api/download'
+    | '/api/razorpay/create-order'
+    | '/api/razorpay/verify'
     | '/api/webhook/callback'
   id:
     | '__root__'
@@ -165,9 +209,13 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/pricing'
     | '/privacy'
+    | '/refund-cancellation'
+    | '/shipping-delivery'
     | '/sitemap.xml'
     | '/terms'
     | '/api/download'
+    | '/api/razorpay/create-order'
+    | '/api/razorpay/verify'
     | '/api/webhook/callback'
   fileRoutesById: FileRoutesById
 }
@@ -180,9 +228,13 @@ export interface RootRouteChildren {
   DashboardRoute: typeof DashboardRoute
   PricingRoute: typeof PricingRoute
   PrivacyRoute: typeof PrivacyRoute
+  RefundCancellationRoute: typeof RefundCancellationRoute
+  ShippingDeliveryRoute: typeof ShippingDeliveryRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   TermsRoute: typeof TermsRoute
   ApiDownloadRoute: typeof ApiDownloadRoute
+  ApiRazorpayCreateOrderRoute: typeof ApiRazorpayCreateOrderRoute
+  ApiRazorpayVerifyRoute: typeof ApiRazorpayVerifyRoute
   ApiWebhookCallbackRoute: typeof ApiWebhookCallbackRoute
 }
 
@@ -200,6 +252,20 @@ declare module '@tanstack/react-router' {
       path: '/sitemap.xml'
       fullPath: '/sitemap.xml'
       preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/shipping-delivery': {
+      id: '/shipping-delivery'
+      path: '/shipping-delivery'
+      fullPath: '/shipping-delivery'
+      preLoaderRoute: typeof ShippingDeliveryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/refund-cancellation': {
+      id: '/refund-cancellation'
+      path: '/refund-cancellation'
+      fullPath: '/refund-cancellation'
+      preLoaderRoute: typeof RefundCancellationRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/privacy': {
@@ -272,6 +338,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiWebhookCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/razorpay/verify': {
+      id: '/api/razorpay/verify'
+      path: '/api/razorpay/verify'
+      fullPath: '/api/razorpay/verify'
+      preLoaderRoute: typeof ApiRazorpayVerifyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/razorpay/create-order': {
+      id: '/api/razorpay/create-order'
+      path: '/api/razorpay/create-order'
+      fullPath: '/api/razorpay/create-order'
+      preLoaderRoute: typeof ApiRazorpayCreateOrderRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -284,9 +364,13 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardRoute: DashboardRoute,
   PricingRoute: PricingRoute,
   PrivacyRoute: PrivacyRoute,
+  RefundCancellationRoute: RefundCancellationRoute,
+  ShippingDeliveryRoute: ShippingDeliveryRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   TermsRoute: TermsRoute,
   ApiDownloadRoute: ApiDownloadRoute,
+  ApiRazorpayCreateOrderRoute: ApiRazorpayCreateOrderRoute,
+  ApiRazorpayVerifyRoute: ApiRazorpayVerifyRoute,
   ApiWebhookCallbackRoute: ApiWebhookCallbackRoute,
 }
 export const routeTree = rootRouteImport

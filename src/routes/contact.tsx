@@ -18,37 +18,75 @@ export const Route = createFileRoute("/contact")({
 
 function Contact() {
   return (
-    <section className="mx-auto max-w-3xl px-6 py-16">
+    <section className="mx-auto max-w-5xl px-6 py-16">
       <div className="text-center">
-        <h1 className="text-4xl md:text-5xl font-bold">Get in touch</h1>
+        <h1 className="text-4xl md:text-5xl font-bold font-heading">Get in touch</h1>
         <p className="mt-3 text-muted-foreground">Questions, feedback or partnerships — we'd love to hear from you.</p>
       </div>
 
-      <form
-        onSubmit={(e) => { e.preventDefault(); toast.success("Message sent! We'll be in touch."); (e.target as HTMLFormElement).reset(); }}
-        className="mt-10 rounded-3xl border border-border bg-card p-7 shadow-[var(--shadow-soft)] space-y-4"
-      >
-        <div className="grid gap-4 md:grid-cols-2">
-          <Input label="Name" name="name" placeholder="Your name" required />
-          <Input label="Email" name="email" type="email" placeholder="you@email.com" required />
-        </div>
-        <div>
-          <label className="text-sm font-medium">Message</label>
-          <textarea
-            required
-            name="message"
-            rows={5}
-            placeholder="Tell us a bit about what you need…"
-            className="mt-1.5 w-full rounded-2xl border border-input bg-background p-4 text-sm outline-none focus:ring-2 focus:ring-ring"
-          />
-        </div>
-        <button
-          type="submit"
-          className="inline-flex h-11 items-center gap-2 rounded-full px-6 text-sm font-semibold text-white gradient-bg shadow-[var(--shadow-glow)] hover:opacity-95 transition-opacity"
+      <div className="mt-12 grid gap-10 md:grid-cols-5 items-start">
+        {/* Contact Form */}
+        <form
+          onSubmit={(e) => { e.preventDefault(); toast.success("Message sent! We'll be in touch."); (e.target as HTMLFormElement).reset(); }}
+          className="md:col-span-3 rounded-3xl border border-border bg-card p-7 shadow-[var(--shadow-soft)] space-y-4"
         >
-          <Mail className="h-4 w-4" /> Send message
-        </button>
-      </form>
+          <div className="grid gap-4 md:grid-cols-2">
+            <Input label="Name" name="name" placeholder="Your name" required />
+            <Input label="Email" name="email" type="email" placeholder="you@email.com" required />
+          </div>
+          <div>
+            <label className="text-sm font-medium">Message</label>
+            <textarea
+              required
+              name="message"
+              rows={5}
+              placeholder="Tell us a bit about what you need…"
+              className="mt-1.5 w-full rounded-2xl border border-input bg-background p-4 text-sm outline-none focus:ring-2 focus:ring-ring"
+            />
+          </div>
+          <button
+            type="submit"
+            className="inline-flex h-11 items-center gap-2 rounded-full px-6 text-sm font-semibold text-white gradient-bg shadow-[var(--shadow-glow)] hover:opacity-95 transition-opacity cursor-pointer"
+          >
+            <Mail className="h-4 w-4" /> Send message
+          </button>
+        </form>
+
+        {/* Business Information Card for Razorpay Compliance */}
+        <div className="md:col-span-2 rounded-3xl border border-border bg-muted/30 p-7 shadow-[var(--shadow-soft)] space-y-6">
+          <div>
+            <h3 className="text-lg font-bold font-heading text-foreground">Business Information</h3>
+            <p className="text-xs text-muted-foreground mt-1">Required for merchant verification & support</p>
+          </div>
+
+          <div className="space-y-4 text-sm">
+            <div>
+              <span className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider">Merchant / Trade Name</span>
+              <span className="text-foreground font-medium">SnapCut AI</span>
+            </div>
+
+            <div>
+              <span className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider">Support Email</span>
+              <a href="mailto:support@snapcut.ai" className="text-primary hover:underline">support@snapcut.ai</a>
+            </div>
+
+            <div>
+              <span className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider">Support Phone</span>
+              <span className="text-foreground font-medium">+91 99999 99999</span>
+            </div>
+
+            <div>
+              <span className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider">Operating Address</span>
+              <span className="text-foreground font-medium leading-relaxed block">
+                SnapCut AI Corporate Office,<br />
+                123 Creative Tech Lane, Sector 62,<br />
+                Noida, Uttar Pradesh - 201301,<br />
+                India
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
     </section>
   );
 }
@@ -65,3 +103,4 @@ function Input(props: React.InputHTMLAttributes<HTMLInputElement> & { label: str
     </div>
   );
 }
+

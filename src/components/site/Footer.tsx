@@ -18,7 +18,7 @@ export function Footer() {
         </div>
         <FooterCol title="Product" links={[["/app","Remove BG"],["/pricing","Pricing"],["/dashboard","Dashboard"]]} />
         <FooterCol title="Company" links={[["/about","About"],["/contact","Contact"]]} />
-        <FooterCol title="Legal" links={[["/privacy","Privacy"],["/terms","Terms"]]} />
+        <FooterCol title="Legal" links={[["/privacy","Privacy"],["/terms","Terms"],["/refund-cancellation","Refund Policy"],["/shipping-delivery","Shipping Policy"]]} />
       </div>
       <div className="border-t border-border/60 py-5 text-center text-xs text-muted-foreground">
         © {new Date().getFullYear()} SnapCut AI. All rights reserved.

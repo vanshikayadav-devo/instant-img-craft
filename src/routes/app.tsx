@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Download, RefreshCw, Loader2, ImageOff, Coins, Trash2 } from "lucide-react";
+import { Download, RefreshCw, Loader2, ImageOff, Coins, Trash2, ShieldAlert } from "lucide-react";
 import { UploadDropzone } from "@/components/site/UploadDropzone";
 import { removeBackground } from "@/lib/api";
 import { getProcessedImageUrl } from "@/lib/api/get-result.server";
@@ -12,7 +12,11 @@ import {
   consume,
   estimateCost,
   getRemaining,
+  getIsPro,
+  setIsPro,
 } from "@/lib/credits";
+import { initializePayment } from "@/lib/razorpay";
+
 
 export const Route = createFileRoute("/app")({
   head: () => ({
@@ -62,6 +66,7 @@ function AppPage() {
   const [resultImageError, setResultImageError] = useState(false);
   const [time, setTime] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isPro, setIsProState] = useState(false);
   const [remaining, setRemaining] = useState<number>(DAILY_FREE_CREDITS);
   const [lastCost, setLastCost] = useState<number | null>(null);
   const [fileName, setFileName] = useState<string>("snapcut.png");
@@ -71,6 +76,14 @@ function AppPage() {
 
   useEffect(() => {
     setRemaining(getRemaining());
+    setIsProState(getIsPro());
+
+    const handleUpdate = () => {
+      setRemaining(getRemaining());
+      setIsProState(getIsPro());
+    };
+
+    window.addEventListener("creditsUpdated", handleUpdate);
 
     // Load history from localStorage
     const stored = localStorage.getItem("snapcut_history");
@@ -81,7 +94,12 @@ function AppPage() {
         console.error("Failed to parse history", e);
       }
     }
+
+    return () => {
+      window.removeEventListener("creditsUpdated", handleUpdate);
+    };
   }, []);
+
 
   const addToHistory = (
     resultUrl: string,
@@ -135,9 +153,29 @@ function AppPage() {
   async function handleFile(file: File) {
     const cost = estimateCost(file.size);
     if (!canAfford(cost)) {
-      toast.error(
-        `Not enough credits. This image costs ${cost}, you have ${getRemaining()} left today.`,
-      );
+      toast("Not enough credits", {
+        description: `This image costs ${cost} credits, and you have ${getRemaining()} left today. Upgrade to Pro for unlimited access.`,
+        action: {
+          label: "Upgrade for ₹299",
+          onClick: async () => {
+            try {
+              await initializePayment({
+                amount: 299,
+                onSuccess: (paymentId) => {
+                  setIsPro(true);
+                  toast.success("Upgrade successful! You now have unlimited credits.");
+                },
+                onFailure: (err) => {
+                  toast.error(err instanceof Error ? err.message : "Payment failed");
+                }
+              });
+            } catch (err) {
+              console.error(err);
+            }
+          }
+        },
+        duration: 10000,
+      });
       return;
     }
     setLastCost(cost);
