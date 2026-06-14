@@ -29,6 +29,7 @@ interface PaymentOptions {
   amount: number; // in INR (e.g. 299)
   onSuccess: (paymentId: string) => void;
   onFailure?: (error: any) => void;
+  userName?: string;
   userEmail?: string;
   userPhone?: string;
 }
@@ -41,6 +42,7 @@ export async function initializePayment({
   amount,
   onSuccess,
   onFailure,
+  userName = "Valued Customer",
   userEmail = "user@example.com",
   userPhone = "9999999999",
 }: PaymentOptions) {
@@ -162,6 +164,25 @@ export async function initializePayment({
       description: `Purchase subscription / credits`,
       image: "https://snapcut-ai.vercel.app/logo.png", // Replace with actual logo URL if available
       order_id: orderId,
+      config: {
+        display: {
+          blocks: {
+            upi: {
+              name: "UPI / QR Code (Fast)",
+              instruments: [
+                {
+                  method: "upi",
+                  flows: ["intent", "qr"]
+                }
+              ]
+            }
+          },
+          sequence: ["block.upi"],
+          preferences: {
+            show_default_blocks: true
+          }
+        }
+      },
       handler: async function (response: any) {
         // 3. Verify payment signature on backend
         try {
@@ -193,7 +214,7 @@ export async function initializePayment({
         }
       },
       prefill: {
-        name: "Valued Customer",
+        name: userName,
         email: userEmail,
         contact: userPhone,
       },

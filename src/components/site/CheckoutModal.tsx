@@ -73,6 +73,7 @@ export function CheckoutModal({ isOpen, onOpenChange, amount }: CheckoutModalPro
     try {
       await initializePayment({
         amount,
+        userName: formData.name,
         userEmail: formData.email,
         userPhone: formData.phone,
         onSuccess: (paymentId) => {
