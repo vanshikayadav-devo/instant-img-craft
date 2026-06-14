@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "supabase": {
+      "type": "sse",
+      "url": "https://mcp.supabase.com/mcp?project_ref=gulnpefxhwokjveftkkz",
+      "serverURL": "https://mcp.supabase.com/mcp?project_ref=gulnpefxhwokjveftkkz"
+    }
+  }
+}
