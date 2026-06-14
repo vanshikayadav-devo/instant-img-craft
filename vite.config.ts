@@ -15,4 +15,5 @@ export default defineConfig({
       disableCsrfMiddlewareWarning: true,
     },
   },
+  nitro: true,
 });
