@@ -15,7 +15,7 @@ import {
   getIsPro,
   setIsPro,
 } from "@/lib/credits";
-import { initializePayment } from "@/lib/razorpay";
+import { CheckoutModal } from "@/components/site/CheckoutModal";
 
 
 export const Route = createFileRoute("/app")({
@@ -67,9 +67,11 @@ function AppPage() {
   const [time, setTime] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isPro, setIsProState] = useState(false);
+  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [remaining, setRemaining] = useState<number>(DAILY_FREE_CREDITS);
   const [lastCost, setLastCost] = useState<number | null>(null);
   const [fileName, setFileName] = useState<string>("snapcut.png");
+
 
   const [activeTab, setActiveTab] = useState<"remove" | "history">("remove");
   const [history, setHistory] = useState<HistoryItem[]>([]);
@@ -156,22 +158,9 @@ function AppPage() {
       toast("Not enough credits", {
         description: `This image costs ${cost} credits, and you have ${getRemaining()} left today. Upgrade to Pro for unlimited access.`,
         action: {
-          label: "Upgrade for ₹299",
-          onClick: async () => {
-            try {
-              await initializePayment({
-                amount: 299,
-                onSuccess: (paymentId) => {
-                  setIsPro(true);
-                  toast.success("Upgrade successful! You now have unlimited credits.");
-                },
-                onFailure: (err) => {
-                  toast.error(err instanceof Error ? err.message : "Payment failed");
-                }
-              });
-            } catch (err) {
-              console.error(err);
-            }
+          label: "Upgrade to Pro",
+          onClick: () => {
+            setIsCheckoutOpen(true);
           }
         },
         duration: 10000,
@@ -518,6 +507,11 @@ function AppPage() {
           </div>
         )}
       </div>
+      <CheckoutModal
+        isOpen={isCheckoutOpen}
+        onOpenChange={setIsCheckoutOpen}
+        amount={299}
+      />
     </section>
   );
 }
