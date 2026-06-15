@@ -1,6 +1,8 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { Mail, Lock, Sparkles } from "lucide-react";
+import { Mail, Lock, Sparkles, Loader2, User, Phone } from "lucide-react";
+import { supabase } from "@/lib/supabase";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
@@ -14,6 +16,80 @@ export const Route = createFileRoute("/auth")({
 
 function AuthPage() {
   const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const navigate = useNavigate();
+
+  const handleAuth = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email || !password) {
+      toast.error("Please enter both email and password.");
+      return;
+    }
+    
+    if (mode === "signup" && (!name || !phone)) {
+      toast.error("Please enter your name and phone number.");
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      if (mode === "signup") {
+        const { error, data } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: {
+              full_name: name,
+              phone: phone,
+            }
+          }
+        });
+
+        if (error) throw error;
+        
+        if (data.session) {
+          toast.success("Account created successfully!");
+          navigate({ to: "/dashboard" });
+        } else {
+          toast.success("Please check your email for a confirmation link.");
+          setMode("signin");
+        }
+      } else {
+        const { error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+
+        if (error) throw error;
+
+        toast.success("Welcome back!");
+        navigate({ to: "/dashboard" });
+      }
+    } catch (error: any) {
+      toast.error(error.message || "An error occurred during authentication.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/dashboard`
+        }
+      });
+      if (error) throw error;
+    } catch (error: any) {
+      toast.error(error.message || "An error occurred with Google Sign-In.");
+    }
+  };
 
   return (
     <section className="mx-auto max-w-md px-6 py-16">
@@ -28,7 +104,11 @@ function AuthPage() {
       </div>
 
       <div className="mt-8 rounded-3xl border border-border bg-card p-7 shadow-[var(--shadow-soft)]">
-        <button className="w-full inline-flex h-11 items-center justify-center gap-2 rounded-full border border-border bg-background text-sm font-medium hover:bg-accent transition-colors">
+        <button 
+          onClick={handleGoogleSignIn}
+          type="button"
+          className="w-full inline-flex h-11 items-center justify-center gap-2 rounded-full border border-border bg-background text-sm font-medium hover:bg-accent transition-colors"
+        >
           <GoogleIcon /> Continue with Google
         </button>
 
@@ -36,9 +116,47 @@ function AuthPage() {
           <div className="flex-1 h-px bg-border" /> OR <div className="flex-1 h-px bg-border" />
         </div>
 
-        <form className="space-y-3" onSubmit={(e) => e.preventDefault()}>
-          <Field icon={Mail} type="email" placeholder="you@email.com" />
-          <Field icon={Lock} type="password" placeholder="Password" />
+        <form className="space-y-3" onSubmit={handleAuth}>
+          {mode === "signup" && (
+            <>
+              <Field 
+                icon={User} 
+                type="text" 
+                placeholder="Full Name" 
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+                disabled={isLoading}
+              />
+              <Field 
+                icon={Phone} 
+                type="tel" 
+                placeholder="Phone Number" 
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                required
+                disabled={isLoading}
+              />
+            </>
+          )}
+          <Field 
+            icon={Mail} 
+            type="email" 
+            placeholder="you@email.com" 
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            disabled={isLoading}
+          />
+          <Field 
+            icon={Lock} 
+            type="password" 
+            placeholder="Password" 
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            disabled={isLoading}
+          />
           {mode === "signin" && (
             <div className="text-right text-xs">
               <Link to="/auth" className="text-muted-foreground hover:text-foreground">Forgot password?</Link>
@@ -46,8 +164,10 @@ function AuthPage() {
           )}
           <button
             type="submit"
-            className="w-full inline-flex h-11 items-center justify-center rounded-full px-5 text-sm font-semibold text-white gradient-bg shadow-[var(--shadow-glow)] hover:opacity-95 transition-opacity"
+            disabled={isLoading}
+            className="w-full inline-flex h-11 items-center justify-center gap-2 rounded-full px-5 text-sm font-semibold text-white gradient-bg shadow-[var(--shadow-glow)] hover:opacity-95 transition-opacity disabled:opacity-70"
           >
+            {isLoading && <Loader2 className="h-4 w-4 animate-spin" />}
             {mode === "signin" ? "Sign in" : "Create account"}
           </button>
         </form>
@@ -57,6 +177,7 @@ function AuthPage() {
           <button
             onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
             className="gradient-text font-medium"
+            type="button"
           >
             {mode === "signin" ? "Create account" : "Sign in"}
           </button>
@@ -72,7 +193,7 @@ function Field({ icon: Icon, ...props }: { icon: any } & React.InputHTMLAttribut
       <Icon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
       <input
         {...props}
-        className="w-full h-11 rounded-full border border-input bg-background pl-10 pr-4 text-sm outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+        className="w-full h-11 rounded-full border border-input bg-background pl-10 pr-4 text-sm outline-none focus:ring-2 focus:ring-ring focus:border-transparent disabled:opacity-50"
       />
     </div>
   );

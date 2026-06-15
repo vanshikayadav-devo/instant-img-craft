@@ -1,5 +1,12 @@
 import { Link } from "@tanstack/react-router";
-import { Sparkles } from "lucide-react";
+import { Sparkles, LogOut, User } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const NAV = [
   { to: "/app", label: "Remove BG" },
@@ -9,6 +16,8 @@ const NAV = [
 ] as const;
 
 export function Navbar() {
+  const { user, signOut } = useAuth();
+
   return (
     <header className="sticky top-0 z-40 glass border-b border-border/60">
       <div className="mx-auto max-w-7xl px-6 h-16 flex items-center justify-between">
@@ -33,18 +42,44 @@ export function Navbar() {
           ))}
         </nav>
         <div className="flex items-center gap-2">
-          <Link
-            to="/auth"
-            className="hidden sm:inline-flex h-9 items-center px-3 text-sm text-muted-foreground hover:text-foreground transition-colors"
-          >
-            Sign in
-          </Link>
-          <Link
-            to="/app"
-            className="inline-flex h-9 items-center rounded-full px-4 text-sm font-medium text-white gradient-bg shadow-[var(--shadow-glow)] hover:opacity-95 transition-opacity"
-          >
-            Try free
-          </Link>
+          {user ? (
+            <>
+              <Link
+                to="/dashboard"
+                className="hidden sm:inline-flex h-9 items-center px-3 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Dashboard
+              </Link>
+              <button
+                onClick={() => signOut()}
+                className="hidden sm:inline-flex h-9 items-center gap-2 px-3 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <LogOut className="h-4 w-4" />
+                Sign out
+              </button>
+              <Link
+                to="/app"
+                className="inline-flex h-9 items-center rounded-full px-4 text-sm font-medium text-white gradient-bg shadow-[var(--shadow-glow)] hover:opacity-95 transition-opacity"
+              >
+                App
+              </Link>
+            </>
+          ) : (
+            <>
+              <Link
+                to="/auth"
+                className="hidden sm:inline-flex h-9 items-center px-3 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Sign in
+              </Link>
+              <Link
+                to="/app"
+                className="inline-flex h-9 items-center rounded-full px-4 text-sm font-medium text-white gradient-bg shadow-[var(--shadow-glow)] hover:opacity-95 transition-opacity"
+              >
+                Try free
+              </Link>
+            </>
+          )}
         </div>
       </div>
     </header>
